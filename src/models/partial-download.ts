@@ -13,33 +13,33 @@ export class PartialDownload extends events.EventEmitter {
     private req: request.Request;
 
     public start(url: string, range: PartialDownloadRange, headers?: request.Headers): PartialDownload {
-        let retryCount = 0;
-        let lastSuccessfulOffset = range.start;
+        let retryCount: number = 0;
 
-        const downloadChunk = (startOffset: number) => {
+        const downloadChunk = (offset: number) => {
             const options: request.CoreOptions = {};
             options.headers = headers || {};
-            options.headers.Range = `${AcceptRanges.Bytes}=${startOffset}-${range.end}`;
+            options.headers.Range = `${AcceptRanges.Bytes}=${offset}-${range.end}`;
 
             this.req = request.get(url, options)
                 .on('error', (err) => {
+                    this.req.abort();
                     if (retryCount < this.MAX_RETRIES) {
                         retryCount++;
-                        downloadChunk(lastSuccessfulOffset);
+                        downloadChunk(offset);
                     } else {
                         this.emit('error', `Failed to get data-chunk after ${this.MAX_RETRIES} attempts. ${err}`);
                     }
                 })
                 .on('data', (data) => {
-                    this.emit('data', data, lastSuccessfulOffset);
-                    lastSuccessfulOffset += data.length;
+                    this.emit('data', data, offset);
+                    offset += data.length;
                 })
                 .on('end', () => {
                     this.emit('end');
                 });
         };
 
-        downloadChunk(lastSuccessfulOffset);
+        downloadChunk(range.start);
 
         return this;
     }
