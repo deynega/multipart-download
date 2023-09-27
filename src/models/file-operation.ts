@@ -28,11 +28,17 @@ export class FileOperation implements Operation {
             }
 
             const segmentsRange: PartialDownloadRange[] = FileSegmentation.getSegmentsRange(contentLength, numOfConnections);
+            const activeDownloads: PartialDownload[] = [];
 
             for (const segmentRange of segmentsRange) {
-
-                new PartialDownload()
+                const downloadInstance = new PartialDownload()
                     .start(url, segmentRange, headers)
+                    .on('downloadError', (err) => {
+                        for (const activeDownload of activeDownloads) {
+                            activeDownload.abort();
+                        }
+                        this.emitter.emit('downloadError', `Failed to download chunk range ${segmentRange.start}-${segmentRange.end}. Aborting all downloads. Error: ${err}`);
+                    })
                     .on('error', (error) => {
                         this.emitter.emit('error', error);
                     })
@@ -56,11 +62,12 @@ export class FileOperation implements Operation {
                             });
                         }
                     });
+
+                activeDownloads.push(downloadInstance);
             }
 
         });
 
         return this.emitter;
     }
-
 }

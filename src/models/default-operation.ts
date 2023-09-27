@@ -14,10 +14,17 @@ export class DefaultOperation implements Operation {
         let endCounter: number = 0;
 
         const segmentsRange: PartialDownloadRange[] = FileSegmentation.getSegmentsRange(contentLength, numOfConnections);
-        for (const segmentRange of segmentsRange) {
+        const activeDownloads: PartialDownload[] = [];
 
-            new PartialDownload()
+        for (const segmentRange of segmentsRange) {
+            const downloadInstance = new PartialDownload()
                 .start(url, segmentRange, headers)
+                .on('downloadError', (err) => {
+                    for (const activeDownload of activeDownloads) {
+                        activeDownload.abort();
+                    }
+                    this.emitter.emit('downloadError', `Failed to download chunk range ${segmentRange.start}-${segmentRange.end}. Aborting all downloads. Error: ${err}`);
+                })
                 .on('error', (err) => {
                     this.emitter.emit('error', err);
                 })
@@ -29,6 +36,8 @@ export class DefaultOperation implements Operation {
                         this.emitter.emit('end', null);
                     }
                 });
+
+            activeDownloads.push(downloadInstance);
         }
 
         return this.emitter;

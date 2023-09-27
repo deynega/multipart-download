@@ -9,27 +9,42 @@ export interface PartialDownloadRange {
 }
 
 export class PartialDownload extends events.EventEmitter {
+    private readonly MAX_RETRIES: number = 3;
+    private req: request.Request;
 
     public start(url: string, range: PartialDownloadRange, headers?: request.Headers): PartialDownload {
-        const options: request.CoreOptions = {};
+        let retryCount = 0;
+        let lastSuccessfulOffset = range.start;
 
-        options.headers = headers || {};
-        options.headers.Range = `${AcceptRanges.Bytes}=${range.start}-${range.end}`;
+        const downloadChunk = (startOffset: number) => {
+            const options: request.CoreOptions = {};
+            options.headers = headers || {};
+            options.headers.Range = `${AcceptRanges.Bytes}=${startOffset}-${range.end}`;
 
-        let offset: number = range.start;
-        request
-            .get(url, options)
-            .on('error', (err) => {
-                this.emit('error', err);
-            })
-            .on('data', (data) => {
-                this.emit('data', data, offset);
-                offset += data.length;
-            })
-            .on('end', () => {
-                this.emit('end');
-            });
+            this.req = request.get(url, options)
+                .on('error', (err) => {
+                    if (retryCount < this.MAX_RETRIES) {
+                        retryCount++;
+                        downloadChunk(lastSuccessfulOffset);
+                    } else {
+                        this.emit('downloadError', err);
+                    }
+                })
+                .on('data', (data) => {
+                    this.emit('data', data, startOffset);
+                    lastSuccessfulOffset += data.length;
+                })
+                .on('end', () => {
+                    this.emit('end');
+                });
+        };
+
+        downloadChunk(lastSuccessfulOffset);
 
         return this;
+    }
+
+    public abort(): void {
+        this.req.abort();
     }
 }
