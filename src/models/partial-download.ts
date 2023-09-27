@@ -31,7 +31,7 @@ export class PartialDownload extends events.EventEmitter {
                     }
                 })
                 .on('data', (data) => {
-                    this.emit('data', data, startOffset);
+                    this.emit('data', data, lastSuccessfulOffset);
                     lastSuccessfulOffset += data.length;
                 })
                 .on('end', () => {
