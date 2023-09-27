@@ -22,13 +22,10 @@ export class BufferOperation implements Operation {
 
             const downloadInstance = new PartialDownload()
                 .start(url, segmentRange, headers)
-                .on('downloadError', (err) => {
+                .on('error', (err) => {
                     for (const activeDownload of activeDownloads) {
                         activeDownload.abort();
                     }
-                    this.emitter.emit('downloadError', `Failed to download chunk range ${segmentRange.start}-${segmentRange.end}. Aborting all downloads. Error: ${err}`);
-                })
-                .on('error', (err) => {
                     this.emitter.emit('error', err);
                 })
                 .on('data', (data, offset) => {

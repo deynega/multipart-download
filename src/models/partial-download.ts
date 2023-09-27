@@ -27,7 +27,7 @@ export class PartialDownload extends events.EventEmitter {
                         retryCount++;
                         downloadChunk(lastSuccessfulOffset);
                     } else {
-                        this.emit('downloadError', err);
+                        this.emit('error', `Failed to get data-chunk after ${this.MAX_RETRIES} attempts. ${err}`);
                     }
                 })
                 .on('data', (data) => {

@@ -33,13 +33,10 @@ export class FileOperation implements Operation {
             for (const segmentRange of segmentsRange) {
                 const downloadInstance = new PartialDownload()
                     .start(url, segmentRange, headers)
-                    .on('downloadError', (err) => {
+                    .on('error', (error) => {
                         for (const activeDownload of activeDownloads) {
                             activeDownload.abort();
                         }
-                        this.emitter.emit('downloadError', `Failed to download chunk range ${segmentRange.start}-${segmentRange.end}. Aborting all downloads. Error: ${err}`);
-                    })
-                    .on('error', (error) => {
                         this.emitter.emit('error', error);
                     })
                     .on('data', (data, offset) => {
